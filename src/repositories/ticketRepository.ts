@@ -1,66 +1,84 @@
-import connection from "../database/database.js";
-import { Seat, SeatTicket } from "../protocols/protocols.js";
+import prisma from "../database/database.js";
+import { Seat } from "../protocols/protocols.js";
 
-export async function postTicketRepository(seatId: number, tripId: number, name: string){
-    await connection.query(`
-    UPDATE
-        seat
-    SET "occupied" = TRUE
-    WHERE id = $1
-    `,[seatId])
+export async function postTicketRepository(
+	seatId: number,
+	tripId: number,
+	name: string
+) {
+	await prisma.seat.update({
+		where: {
+			id: seatId,
+		},
+		data: {
+			occupied: true,
+		},
+	});
 
-    await connection.query(`
-    INSERT INTO 
-        ticket ("seatId", "tripId", "name") 
-    VALUES ($1, $2, $3)
-    `,[seatId, tripId, name]);
+	await prisma.ticket.create({
+		data: {
+			seatId: seatId,
+			tripId: tripId,
+			name: name,
+		},
+	});
 }
 
-export async function deleteTicketRepository(id: number){
-    await connection.query(`
-        UPDATE
-            seat
-        SET "occupied" = FALSE
-        WHERE id = $1
-        `,[id])
+export async function deleteTicketRepository(id: number) {
+	await prisma.seat.update({
+		where: {
+			id: id,
+		},
+		data: {
+			occupied: false,
+		},
+	});
 
-    await connection.query(`
-        DELETE
-        FROM ticket
-        WHERE "seatId" = $1
-        `,[id])
+	await prisma.ticket.deleteMany({
+		where: {
+			seatId: id,
+		},
+	});
 }
 
-export async function modifyNameRepository(id: number, name: string){
-    await connection.query(`
-        UPDATE
-            ticket
-        SET "name" = $2
-        WHERE "seatId" = $1
-        `,[id, name])
+export async function modifyNameRepository(id: number, name: string) {
+	await prisma.ticket.updateMany({
+		where: {
+			seatId: id,
+		},
+		data: {
+			name: name,
+		},
+	});
 }
 
-export async function getTicketRepository(id: number): Promise<Seat>{
-    const seat = await connection.query<Seat>(`
-        SELECT 
-            s.*,
-            t.name
-        FROM seat s
-        LEFT JOIN ticket t
-        ON t."seatId" = $1
-        WHERE s."id" = $1
-        GROUP BY s.id, t.name
-        `,[id])
-    return seat.rows[0];
+export async function getTicketRepository(id: number): Promise<Seat> {
+	const seat = await prisma.seat.findFirst({
+		where: {
+			id: id,
+		},
+		select: {
+			id: true,
+			tripId: true,
+			seatNumber: true,
+			occupied: true,
+			ticket: {
+				select: {
+					name: true,
+				},
+			},
+		},
+	});
+	return seat;
 }
 
-export async function getAllTicketFromTripRepository(tripId: number): Promise<SeatTicket[]>{
-    const seat = await connection.query<SeatTicket>(`
-        SELECT 
-            s.*
-        FROM seat s
-        WHERE s."tripId" = $1
-        GROUP BY s.id
-        `,[tripId])
-    return seat.rows;
+export async function getAllTicketFromTripRepository(
+	tripId: number
+): Promise<Seat[]> {
+	const seat = prisma.seat.findMany({
+		where: {
+			tripId: tripId,
+		},
+	});
+	return seat;
 }

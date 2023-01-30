@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model seat {
+  id         Int     @id(map: "seat_pk") @unique @default(autoincrement())
+  seatNumber Int
+  tripId     Int
+  occupied   Boolean @default(false)
+  trip       trip    @relation(fields: [tripId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ticket     ticket?
+}
+
+model sessions {
+  id        Int      @id(map: "sessions_pk") @unique @default(autoincrement())
+  userId    Int
+  token     String
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  users     users    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model ticket {
+  id     Int    @id(map: "ticket_pk") @default(autoincrement())
+  name   String
+  seatId Int    @unique(map: "ticket_seat_id_key")
+  tripId Int
+  seat   seat   @relation(fields: [seatId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  trip   trip   @relation(fields: [tripId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model trip {
+  id     Int      @id(map: "trip_pk") @unique @default(autoincrement())
+  to     String
+  by     String
+  date   DateTime @db.Timestamp(6)
+  userId Int
+  seat   seat[]
+  ticket ticket[]
+  users  users    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model users {
+  id        Int        @id(map: "users_pk") @unique @default(autoincrement())
+  name      String
+  email     String     @unique
+  password  String
+  createdAt DateTime   @default(now()) @db.Timestamp(6)
+  sessions  sessions[]
+  trip      trip[]
+}
